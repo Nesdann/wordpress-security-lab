@@ -150,7 +150,7 @@ Host principal:
 
 
 silentium.htb
-1. Enumeración inicial
+ Enumeración inicial
 Fuzzing de directorios
 
 Comando:
@@ -162,7 +162,7 @@ ffuf -u http://silentium.htb/FUZZ \
 Resultado relevante:
 
 assets [Status: 301]
-2. Análisis de /assets
+ Análisis de /assets
 Redirect observado
 curl -I http://silentium.htb/assets
 
@@ -188,7 +188,7 @@ el directorio existe
 listing deshabilitado
 nginx bloquea indexado
 sigue siendo útil porque confirma superficie real
-3. Problema de wildcard/falsos positivos
+ Problema de wildcard/falsos positivos
 
 Se detectó que el host respondía:
 
@@ -222,7 +222,7 @@ Solución:
 
 para filtrar respuestas basura.
 
-4. Enumeración más profunda de assets
+ Enumeración más profunda de assets
 
 Comando:
 
@@ -244,7 +244,7 @@ APIs
 tokens
 rutas ocultas
 tecnologías
-5. Enumeración de subdominios virtuales
+ Enumeración de subdominios virtuales
 
 Comando:
 
@@ -267,7 +267,7 @@ probablemente entorno de testing/dev
 Agregar a /etc/hosts:
 
 IP staging.silentium.htb
-6. Análisis de staging
+ Análisis de staging
 Tecnología identificada
 
 La página devuelve:
@@ -280,7 +280,7 @@ Flowise
 React
 Vite
 SPA frontend
-7. Superficie funcional identificada
+ Superficie funcional identificada
 
 Desde JS bundle se identificaron módulos/componentes:
 
@@ -314,7 +314,7 @@ posible ejecución de workflows
 manejo de credenciales
 APIs administrativas
 potencial SSRF/RCE
-8. Confirmación de panel de login
+ Confirmación de panel de login
 
 Hallazgo:
 
@@ -328,3 +328,156 @@ sesiones
 cookies
 JWT
 APIs backend
+El HTML inicial mostraba:
+
+ <script type="module" crossorigin src="/assets/index-C6GKaUTA.js"></script>
+Comprensión del frontend moderno
+
+Se identificó que el HTML inicial no contenía funcionalidad real.
+
+El frontend estaba construido como SPA (Single Page Application):
+
+React renderiza dinámicamente
+El backend se consume mediante APIs
+El JS contiene:
+rutas
+endpoints
+lógica auth
+componentes
+features internas
+
+Gran parte del HTML encontrado era solo:
+
+metadata
+OpenGraph
+Twitter cards
+fuentes Google
+analytics externos
+ Descarga del bundle JavaScript
+
+Se descargó el JS principal:
+
+curl -s http://staging.silentium.htb/assets/index-C6GKaUTA.js -o flowise.js
+ Problema inicial: JS minimizado
+
+El archivo estaba minificado.
+
+Consecuencia:
+
+todo el JS estaba en una sola línea
+grep devolvía prácticamente el archivo entero
+
+Ejemplo:
+
+grep api flowise.js
+
+Resultado:
+
+ilegible
+demasiado ruido
+ Técnicas usadas para hacerlo legible
+Separar por ;
+cat flowise.js | tr ';' '\n' | less
+
+Esto mejoró muchísimo la lectura.
+
+Separar por ,
+cat flowise.js | tr ',' '\n' | less
+
+Útil para arrays gigantes y dependencias.
+
+Extraer strings
+strings flowise.js
+
+y:
+
+strings flowise.js | grep -i api
+
+Esto permitió encontrar rutas y palabras interesantes.
+
+Uso correcto de grep con archivos minificados
+
+En vez de:
+
+grep api flowise.js
+
+se utilizó:
+
+grep -oE '/api/[A-Za-z0-9/_?.=&-]+' flowise.js
+
+-o imprime solo el match y evita mostrar toda la línea.
+
+ Información sensible encontrada
+Endpoints API reales
+/api/v1
+/api/v1/auth/refreshToken
+/api/v1/version
+
+Esto confirmó:
+
+existencia de backend REST
+sistema de autenticación
+refresh tokens
+versionado de API
+Variables de entorno frontend
+VITE_API_BASE_URL
+VITE_UI_BASE_URL
+
+Importante porque:
+
+Vite inyecta configuración del entorno
+puede revelar infraestructura
+puede mostrar backend real
+
+js-beautify flowise.js > pretty.js
+# endpoints API
+grep -oE '/api/[A-Za-z0-9/_?.=&-]+' flowise.js | sort -u
+# rutas interesantes
+grep -oiE 'login|register|resetpassword|apikey|credential|workspace|execution|assistant|vectorstore|documentstore|chatflow|admin|user' flowise.js | sort -u# rutas interesantes
+grep -oiE 'login|register|resetpassword|apikey|credential|workspace|execution|assistant|vectorstore|documentstore|chatflow|admin|user' flowise.js | sort -u
+# URLs completas
+grep -oE 'https?://[^"]+' flowise.js | sort -u
+# variables de entorno
+grep -oE 'VITE_[A-Z0-9_]+' flowise.js | sort -u
+# posibles secretos/tokens
+grep -oiE 'token|secret|apikey|api_key|jwt|bearer|password|passwd|authorization' flowise.js | sort -u
+# llamadas fetch
+grep -oE 'fetch\([^)]+' flowise.js
+# axios
+grep -oiE 'axios\.[a-z]+' flowise.js | sort -u
+# métodos HTTP
+grep -oiE '"GET"|"POST"|"PUT"|"DELETE"|"PATCH"' flowise.js | sort -u
+# paneles o componentes internos
+grep -oiE 'Admin|Login|Dashboard|Workspace|Credential|Execution|Webhook|Assistant|Marketplace|UserProfile' flowise.js | sort -u
+# nombres largos útiles
+grep -oE '[A-Za-z0-9/_-]{15,}' flowise.js | sort -u | less
+# romper el archivo por ,
+cat flowise.js | tr ',' '\n' | less
+# strings relacionadas a auth
+strings flowise.js | grep -iE 'auth|login|token|jwt|session|cookie'
+# endpoints potenciales limpios
+grep -oE '/[A-Za-z0-9/_-]+' flowise.js | sort -u | less
+# cosas relacionadas a usuarios
+grep -oiE 'user|users|invite|role|permission|auth0|github|sso' flowise.js | sort -u
+# dump de posibles endpoints
+grep -oE '/api/[A-Za-z0-9/_?.=&-]+' flowise.js | sort -u > apis.txt
+# dump de URLs
+grep -oE 'https?://[^"]+' flowise.js | sort -u > urls.txt
+
+El análisis comenzó con la inspección del JavaScript del frontend. A partir del archivo minificado se logró identificar información relevante sobre la aplicación y su backend. Esto permitió inferir que la instancia correspondía a una API expuesta bajo /api/v1/, asociada a una versión vulnerable del sistema.
+
+Un punto crítico del análisis fue la identificación explícita de la versión del software. Mediante la revisión del código JavaScript se obtuvo la versión de Flowise expuesta por la aplicación, identificada como Flowise 3.0.5, la cual resulta crítica debido a la existencia de vulnerabilidades conocidas en ese rango de versiones. Este hallazgo determinó el enfoque posterior del análisis hacia la búsqueda de exposición de secretos y bypass de autenticación.
+
+A partir de este punto se profundizó en la revisión del frontend con el objetivo de encontrar información sensible embebida en el código. Se buscaron patrones típicos como correos electrónicos, tokens de sesión, claves API y credenciales residuales. Esta fase no arrojó correos adicionales ni credenciales reutilizables directas, pero sí permitió identificar la presencia de un valor denominado DefaultKey, lo que sugería la existencia de un mecanismo alternativo de autenticación basado en API keys además del flujo de login convencional.
+
+Con este contexto, el siguiente paso fue analizar el sistema de autenticación de la aplicación. El endpoint de login se encontraba operativo, pero correctamente protegido contra credenciales inválidas, devolviendo respuestas de acceso denegado. Esto confirmó que el flujo de autenticación principal no era trivialmente explotable.
+
+Posteriormente se exploró el endpoint de recuperación de contraseña. Al interactuar con el mecanismo de “forgot password” utilizando un correo válido, la API respondió exponiendo el objeto completo del usuario. Dentro de esta respuesta se incluían datos sensibles como el hash de la contraseña y un tempToken asociado al proceso de reseteo. Este comportamiento evidenció una vulnerabilidad crítica de fuga de información en el backend, ya que el token de recuperación era devuelto directamente por la API.
+
+Con el tempToken obtenido se intentó acceder a endpoints internos relacionados con MCP y carga de nodos, específicamente el endpoint node-load-method/customMCP. Sin embargo, todas las solicitudes fueron rechazadas con errores de autorización, indicando que dicho token no otorgaba privilegios sobre la funcionalidad administrativa o de ejecución.
+
+En paralelo se continuó la investigación sobre las credenciales expuestas en el frontend. El valor DefaultKey fue reutilizado como posible API key o credencial de servicio en los headers de autorización. A pesar de esto, el acceso a los endpoints protegidos continuó fallando, devolviendo nuevamente respuestas de “Unauthorized Access”.
+
+En este punto se concluye que, aunque se logró la extracción de información sensible crítica (versión del sistema, API key interna y token de reseteo de contraseña), el acceso a funcionalidades de ejecución en MCP aún requiere un mecanismo de autenticación adicional o un contexto privilegiado distinto al obtenido hasta el momento
+
+(CVE-2025-59528  https://github-com.translate.goog/advisories/GHSA-3gcm-f6qx-ff7p?_x_tr_sl=en&_x_tr_tl=es-419&_x_tr_hl=es-419&_x_tr_pto=sc)
