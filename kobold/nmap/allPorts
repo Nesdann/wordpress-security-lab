@@ -1,0 +1,4 @@
+# Nmap 7.94SVN scan initiated Tue May 19 09:37:16 2026 as: nmap -p- --open -sS --min-rate 5000 -n -Pn -oG allPorts 10.129.62.137
+Host: 10.129.62.137 ()	Status: Up
+Host: 10.129.62.137 ()	Ports: 22/open/tcp//ssh///, 80/open/tcp//http///, 443/open/tcp//https///, 3552/open/tcp//taserver///
+# Nmap done at Tue May 19 09:37:31 2026 -- 1 IP address (1 host up) scanned in 15.23 seconds
